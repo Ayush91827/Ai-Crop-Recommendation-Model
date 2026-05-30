@@ -22,7 +22,7 @@
 // ─────────────────────────────────────────────
 // CONSTANTS & STATE
 // ─────────────────────────────────────────────
-const API_BASE = 'https://crop-backend.onrender.com';  // Empty = same origin (Node.js server)
+const API_BASE = 'https://ai-crop-recommendation-model.onrender.com';  // Empty = same origin (Node.js server)
 
 let currentPrediction = null;  // Store last prediction for re-render
 let isLoading = false;
