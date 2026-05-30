@@ -76,7 +76,7 @@ const priceCache   = new NodeCache({ stdTTL: 3600 }); // 1 hour
 
 const allowedOrigins = [
   'http://localhost:3000',
-  'https://crop-recommendation.vercel.app'
+  'https://ai-crop-recommendation-model.vercel.app'
 ];
 app.use(cors({
   origin: function(origin, callback) {
