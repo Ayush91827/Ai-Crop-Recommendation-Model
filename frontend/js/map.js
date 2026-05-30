@@ -298,29 +298,38 @@ async function searchLocation(query) {
     const resultsEl = document.getElementById('search-results');
     if (!resultsEl) return;
 
-    resultsEl.innerHTML = `<div class="search-loading">🔍 Searching...</div>`;
+    resultsEl.innerHTML = `<div class="search-loading">🔍 Searching for "${query}"...</div>`;
     resultsEl.style.display = 'block';
 
     try {
-        const response = await fetch(`/api/geocode?q=${encodeURIComponent(query)}`);
+        // Use Nominatim directly from frontend to avoid backend issues
+        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&countrycodes=in&addressdetails=1`;
+        
+        const response = await fetch(url, {
+            headers: {
+                'Accept-Language': 'en',
+                'User-Agent': 'CropRecommendationApp/1.0'
+            }
+        });
+
         const data = await response.json();
 
-        if (!data.results || data.results.length === 0) {
+        if (!data || data.length === 0) {
             resultsEl.innerHTML = `<div class="search-no-results">No results found for "${query}"</div>`;
             return;
         }
 
-        // Render search results as clickable list
-        resultsEl.innerHTML = data.results.map((r, i) => `
+        resultsEl.innerHTML = data.map(r => `
             <div class="search-result-item" 
-                 onclick="selectSearchResult(${r.lat}, ${r.lon}, '${r.name.replace(/'/g, "\\'")}')">
+                 onclick="selectSearchResult(${r.lat}, ${r.lon}, '${r.display_name.replace(/'/g, "\\'")}')">
                 <span class="result-pin">📍</span>
-                <span class="result-name">${r.name}</span>
+                <span class="result-name">${r.display_name}</span>
             </div>
         `).join('');
 
     } catch (err) {
-        resultsEl.innerHTML = `<div class="search-error">Search failed: ${err.message}</div>`;
+        resultsEl.innerHTML = `<div class="search-error">❌ Search failed: ${err.message}</div>`;
+        console.error('Search error:', err);
     }
 }
 
@@ -391,15 +400,24 @@ function closeMapModal() {
  * Closes modal and updates the main form.
  */
 function confirmLocation() {
-    if (!selectedLat || !selectedLon) return;
+    if (!selectedLat || !selectedLon) {
+        alert('Please click on the map to select a location first');
+        return;
+    }
 
     window.userLat = selectedLat;
     window.userLon = selectedLon;
 
-    // Trigger weather fetch for the selected coordinates
+    // Fetch weather for selected location
     fetchWeatherForCoords(selectedLat, selectedLon);
 
+    // Update location status
+    showLocationStatus('success', '📍 Location selected: ' + selectedLat.toFixed(4) + ', ' + selectedLon.toFixed(4));
+
     closeMapModal();
+    
+    // Show confirmation to user
+    showToast('success', '📍 Location selected successfully');
 }
 
 
@@ -437,7 +455,11 @@ function showLocationStatus(type, message) {
 let searchDebounceTimer = null;
 function handleSearchInput(value) {
     clearTimeout(searchDebounceTimer);
-    searchDebounceTimer = setTimeout(() => searchLocation(value), 500);
+    searchDebounceTimer = setTimeout(() => {
+        if (value.trim().length >= 2) {
+            searchLocation(value);
+        }
+    }, 300);
 }
 
 // Close search results when clicking outside
