@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Crop Advisor | फसल सलाहकार</title>
+
+    <!-- Leaflet Map CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+    <!-- Google Fonts: English + Hindi support -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Noto+Sans+Devanagari:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════
+     TOAST NOTIFICATION CONTAINER
+     Appears top-right for success/error alerts
+══════════════════════════════════════════════ -->
+<div id="toast-container"></div>
+
+<!-- ═══════════════════════════════════════════
+     FULL-SCREEN LOADING OVERLAY
+     Shown while AI is processing prediction
+══════════════════════════════════════════════ -->
+<div id="loading-overlay">
+    <div class="loading-box">
+        <div class="loading-wheat">🌾</div>
+        <div class="loading-spinner"></div>
+        <p id="loading-text">Analyzing soil data...</p>
+        <p class="loading-sub">Our AI is consulting 200 decision trees...</p>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     MAP MODAL
+     Full-screen overlay for map location picker
+══════════════════════════════════════════════ -->
+<div id="map-modal">
+    <div class="map-modal-inner">
+        <div class="map-modal-header">
+            <h3 id="map-modal-title">🗺️ Select Location on Map</h3>
+            <button class="map-close-btn" onclick="closeMapModal()">✕</button>
+        </div>
+        <p class="map-instruction" id="map-instruction-text">
+            Click anywhere on the map to select your farm location
+        </p>
+        <div id="map-container"></div>
+        <div class="map-footer">
+            <div class="selected-location-display">
+                <span>📍</span>
+                <span id="selected-location-label">No location selected</span>
+            </div>
+            <button id="confirm-location-btn" class="btn-confirm-location" 
+                    onclick="confirmLocation()" disabled>
+                ✅ Use This Location
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     HEADER / NAVBAR
+══════════════════════════════════════════════ -->
+<header class="site-header">
+    <div class="header-inner">
+        <div class="brand">
+            <div class="brand-icon">🌾</div>
+            <div class="brand-text">
+                <span class="brand-name" data-key="appTitle">AI Crop Advisor</span>
+                <span class="brand-sub" data-key="appSubtitle">Smart Crop Recommendation</span>
+            </div>
+        </div>
+
+        <nav class="nav-links">
+            <a href="#hero" data-key="navHome">Home</a>
+            <a href="#form-section" data-key="navPrices">Predict</a>
+            <a href="#results-section" data-key="navPrices">Results</a>
+        </nav>
+
+        <div class="header-actions">
+            <!-- ML Status Indicator -->
+            <div class="ml-status">
+                <span id="ml-status-indicator" class="status-dot yellow"></span>
+                <span id="ml-status-text">Checking AI...</span>
+            </div>
+            <!-- Language Toggle Button -->
+            <button id="lang-toggle-btn" class="lang-btn" onclick="toggleLanguage()">
+                हिंदी में देखें
+            </button>
+        </div>
+    </div>
+</header>
+
+<!-- ═══════════════════════════════════════════
+     HERO SECTION
+══════════════════════════════════════════════ -->
+<section id="hero" class="hero-section">
+    <div class="hero-bg-pattern"></div>
+    <div class="hero-content">
+        <div class="hero-badge">🤖 Powered by Random Forest ML</div>
+        <h1 class="hero-title" data-key="appTitle">AI Crop Advisor</h1>
+        <p class="hero-subtitle" data-key="tagline">
+            Enter your soil data to get the best crop recommendation
+        </p>
+        <div class="hero-stats">
+            <div class="stat-item">
+                <span class="stat-num">22</span>
+                <span class="stat-label">Crops</span>
+            </div>
+            <div class="stat-divider"></div>
+            <div class="stat-item">
+                <span class="stat-num">97%+</span>
+                <span class="stat-label">Accuracy</span>
+            </div>
+            <div class="stat-divider"></div>
+            <div class="stat-item">
+                <span class="stat-num">7</span>
+                <span class="stat-label">Soil Factors</span>
+            </div>
+            <div class="stat-divider"></div>
+            <div class="stat-item">
+                <span class="stat-num">Live</span>
+                <span class="stat-label">Market Prices</span>
+            </div>
+        </div>
+        <a href="#form-section" class="hero-cta">
+            🔍 Get Recommendation ↓
+        </a>
+    </div>
+    <div class="hero-illustration">
+        <div class="floating-cards">
+            <div class="float-card card-1">🌾 Rice ₹2183/qtl</div>
+            <div class="float-card card-2">🌽 Maize ₹2090/qtl</div>
+            <div class="float-card card-3">☕ Coffee ₹35000/qtl</div>
+            <div class="float-card card-4">🥭 Mango ₹4500/qtl</div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════
+     MAIN FORM SECTION
+══════════════════════════════════════════════ -->
+<main id="form-section" class="form-section">
+    <div class="container">
+
+        <!-- STEP INDICATOR -->
+        <div class="steps-bar">
+            <div class="step active">
+                <div class="step-num">1</div>
+                <span>Location</span>
+            </div>
+            <div class="step-line"></div>
+            <div class="step active">
+                <div class="step-num">2</div>
+                <span>Soil Data</span>
+            </div>
+            <div class="step-line"></div>
+            <div class="step">
+                <div class="step-num">3</div>
+                <span>Results</span>
+            </div>
+        </div>
+
+        <div class="form-grid">
+
+            <!-- LEFT PANEL: Location + Soil Form -->
+            <div class="form-left-panel">
+
+                <!-- ─── LOCATION CARD ─── -->
+                <div class="card location-card">
+                    <div class="card-header">
+                        <h2 class="card-title" data-key="locationTitle">📍 Location</h2>
+                        <p class="card-desc">Auto-fill temperature, humidity & rainfall from live weather</p>
+                    </div>
+
+                    <!-- My Location Button -->
+                    <button id="my-location-btn" class="btn-my-location" onclick="useMyLocation()">
+                        <span class="btn-icon">🎯</span>
+                        <span data-key="useMyLocation">Use My Location</span>
+                    </button>
+
+                    <div class="divider-or">
+                        <span data-key="or">OR</span>
+                    </div>
+
+                    <!-- Search Location -->
+                    <div id="search-container" class="search-container">
+                        <div class="search-input-row">
+                            <input 
+                                type="text" 
+                                id="location-search"
+                                class="search-input"
+                                data-placeholder-key="searchPlaceholder"
+                                placeholder="Search city, village, district..."
+                                oninput="handleSearchInput(this.value)"
+                                autocomplete="off"
+                            />
+                            <button class="btn-search" onclick="searchLocation(document.getElementById('location-search').value)">
+                                🔍
+                            </button>
+                        </div>
+                        <div id="search-results" class="search-results"></div>
+                    </div>
+
+                    <!-- Open Map Button -->
+                    <button class="btn-open-map" onclick="openMapModal()">
+                        🗺️ Open Map & Select Location
+                    </button>
+
+                    <!-- Location Status -->
+                    <div id="location-status" class="location-status" style="display:none;"></div>
+                </div>
+
+                <!-- ─── SOIL PARAMETERS FORM ─── -->
+                <div class="card form-card">
+                    <div class="card-header">
+                        <h2 class="card-title" data-key="formTitle">🌱 Soil & Climate Parameters</h2>
+                        <p class="card-desc" data-key="formSubtitle">
+                            Fill in your soil test report values
+                        </p>
+                        <button class="btn-demo" onclick="fillDemoValues()" title="Fill sample values">
+                            📝 Fill Demo Values
+                        </button>
+                    </div>
+
+                    <form id="soil-form" onsubmit="return false;">
+
+                        <!-- N P K Row -->
+                        <div class="input-row three-col">
+                            <!-- Nitrogen -->
+                            <div class="input-group">
+                                <label for="input-n">
+                                    <span class="nutrient-dot n-dot"></span>
+                                    <span data-key="labelN">Nitrogen (N)</span>
+                                </label>
+                                <div class="input-with-unit">
+                                    <input type="number" id="input-n" class="soil-input"
+                                           placeholder="0–140" min="0" max="140" step="0.1"
+                                           title="Nitrogen content (kg/ha from soil test)"/>
+                                    <span class="unit-badge" data-key="unitKgHa">kg/ha</span>
+                                </div>
+                                <span class="field-error" id="input-n-error"></span>
+                                <div class="input-guide">
+                                    Low: &lt;40 | Medium: 40–80 | High: &gt;80
+                                </div>
+                            </div>
+
+                            <!-- Phosphorus -->
+                            <div class="input-group">
+                                <label for="input-p">
+                                    <span class="nutrient-dot p-dot"></span>
+                                    <span data-key="labelP">Phosphorus (P)</span>
+                                </label>
+                                <div class="input-with-unit">
+                                    <input type="number" id="input-p" class="soil-input"
+                                           placeholder="0–150" min="0" max="150" step="0.1"/>
+                                    <span class="unit-badge" data-key="unitKgHa">kg/ha</span>
+                                </div>
+                                <span class="field-error" id="input-p-error"></span>
+                                <div class="input-guide">
+                                    Low: &lt;25 | Medium: 25–50 | High: &gt;50
+                                </div>
+                            </div>
+
+                            <!-- Potassium -->
+                            <div class="input-group">
+                                <label for="input-k">
+                                    <span class="nutrient-dot k-dot"></span>
+                                    <span data-key="labelK">Potassium (K)</span>
+                                </label>
+                                <div class="input-with-unit">
+                                    <input type="number" id="input-k" class="soil-input"
+                                           placeholder="0–210" min="0" max="210" step="0.1"/>
+                                    <span class="unit-badge" data-key="unitKgHa">kg/ha</span>
+                                </div>
+                                <span class="field-error" id="input-k-error"></span>
+                                <div class="input-guide">
+                                    Low: &lt;110 | Medium: 110–280 | High: &gt;280
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Temperature & Humidity Row -->
+                        <div class="input-row two-col">
+                            <div class="input-group">
+                                <label for="input-temperature">
+                                    🌡️ <span data-key="labelTemp">Temperature</span>
+                                    <span class="auto-badge" data-key="autoFromWeather">(auto from weather)</span>
+                                </label>
+                                <div class="input-with-unit">
+                                    <input type="number" id="input-temperature" class="soil-input"
+                                           placeholder="0–50" min="0" max="50" step="0.1"/>
+                                    <span class="unit-badge">°C</span>
+                                </div>
+                                <span class="field-error" id="input-temperature-error"></span>
+                            </div>
+
+                            <div class="input-group">
+                                <label for="input-humidity">
+                                    💧 <span data-key="labelHumidity">Humidity</span>
+                                    <span class="auto-badge" data-key="autoFromWeather">(auto from weather)</span>
+                                </label>
+                                <div class="input-with-unit">
+                                    <input type="number" id="input-humidity" class="soil-input"
+                                           placeholder="0–100" min="0" max="100" step="0.1"/>
+                                    <span class="unit-badge">%</span>
+                                </div>
+                                <span class="field-error" id="input-humidity-error"></span>
+                            </div>
+                        </div>
+
+                        <!-- pH with visual slider -->
+                        <div class="input-group">
+                            <label for="input-ph">
+                                ⚗️ <span data-key="labelPh">Soil pH</span>
+                                <span class="ph-note" data-key="phRange">(0–14, 7 = neutral)</span>
+                            </label>
+                            <div class="ph-input-group">
+                                <input type="range" id="ph-slider" min="0" max="14" step="0.1" value="7"
+                                       class="ph-slider"/>
+                                <input type="number" id="input-ph" class="soil-input ph-number"
+                                       placeholder="0–14" min="0" max="14" step="0.1"/>
+                            </div>
+                            <div class="ph-scale-labels">
+                                <span class="ph-acid">Acidic (0)</span>
+                                <span class="ph-neutral">Neutral (7)</span>
+                                <span class="ph-alkaline">Alkaline (14)</span>
+                            </div>
+                            <span class="field-error" id="input-ph-error"></span>
+                        </div>
+
+                        <!-- Rainfall -->
+                        <div class="input-group">
+                            <label for="input-rainfall">
+                                🌧️ <span data-key="labelRainfall">Annual Rainfall</span>
+                                <span class="auto-badge" data-key="autoFromWeather">(auto from weather)</span>
+                            </label>
+                            <div class="input-with-unit">
+                                <input type="number" id="input-rainfall" class="soil-input"
+                                       placeholder="0–500" min="0" max="500" step="0.1"/>
+                                <span class="unit-badge">mm</span>
+                            </div>
+                            <span class="field-error" id="input-rainfall-error"></span>
+                        </div>
+
+                        <!-- Error Banner -->
+                        <div id="error-message" class="error-banner" style="display:none;"></div>
+
+                        <!-- Action Buttons -->
+                        <div class="form-actions">
+                            <button type="button" class="btn-reset" onclick="resetForm()" data-key="resetBtn">
+                                🔄 Reset
+                            </button>
+                            <button type="submit" id="predict-btn" class="btn-predict" onclick="handleFormSubmit(event)">
+                                🔍 Get Crop Recommendation
+                            </button>
+                        </div>
+
+                    </form>
+                </div><!-- /form-card -->
+            </div><!-- /form-left-panel -->
+
+
+            <!-- RIGHT PANEL: Info + NPK Guide -->
+            <div class="form-right-panel">
+
+                <!-- HOW IT WORKS -->
+                <div class="card how-it-works-card">
+                    <h3 class="card-title">⚙️ How It Works</h3>
+                    <ol class="how-steps">
+                        <li><span class="how-num">1</span> Enter your soil test N, P, K values</li>
+                        <li><span class="how-num">2</span> Share your location for live weather</li>
+                        <li><span class="how-num">3</span> Our AI analyses 7 soil & climate factors</li>
+                        <li><span class="how-num">4</span> Get top 3 crop recommendations</li>
+                        <li><span class="how-num">5</span> See live market prices (MSP + Mandi)</li>
+                    </ol>
+                </div>
+
+                <!-- N P K GUIDE CARD -->
+                <div class="card npk-guide-card">
+                    <h3 class="card-title">🧪 NPK Quick Guide</h3>
+                    <div class="npk-items">
+                        <div class="npk-item n-item">
+                            <div class="npk-symbol">N</div>
+                            <div>
+                                <strong>Nitrogen</strong>
+                                <p>Leaf & stem growth. Found in urea, DAP</p>
+                            </div>
+                        </div>
+                        <div class="npk-item p-item">
+                            <div class="npk-symbol">P</div>
+                            <div>
+                                <strong>Phosphorus</strong>
+                                <p>Root development & flowering</p>
+                            </div>
+                        </div>
+                        <div class="npk-item k-item">
+                            <div class="npk-symbol">K</div>
+                            <div>
+                                <strong>Potassium</strong>
+                                <p>Disease resistance & fruit quality</p>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="npk-note">📋 Get soil tested at your local KVK for free</p>
+                </div>
+
+                <!-- SAMPLE SOIL PROFILES -->
+                <div class="card sample-profiles-card">
+                    <h3 class="card-title">🗂️ Sample Soil Profiles</h3>
+                    <p class="card-desc">Click to auto-fill with regional data</p>
+                    <div class="profile-buttons">
+                        <button class="profile-btn" onclick="fillProfile('punjab')">
+                            🌾 Punjab (Rice-Wheat)
+                        </button>
+                        <button class="profile-btn" onclick="fillProfile('deccan')">
+                            🌱 Deccan (Cotton)
+                        </button>
+                        <button class="profile-btn" onclick="fillProfile('kerala')">
+                            🥥 Kerala (Coconut)
+                        </button>
+                        <button class="profile-btn" onclick="fillProfile('mp')">
+                            🌿 MP (Soybean)
+                        </button>
+                    </div>
+                </div>
+
+            </div><!-- /form-right-panel -->
+        </div><!-- /form-grid -->
+    </div>
+</main>
+
+
+<!-- ═══════════════════════════════════════════
+     RESULTS SECTION
+══════════════════════════════════════════════ -->
+<section id="results-section" style="display:none;">
+    <div class="container">
+
+        <div class="results-header">
+            <h2 class="section-title" data-key="resultsTitle">🌾 Recommended Crops</h2>
+            <button class="btn-share" onclick="shareResults()" title="Share results">
+                📤 Share
+            </button>
+        </div>
+
+        <!-- WEATHER + SOIL SUMMARY ROW -->
+        <div class="info-cards-row">
+            <div id="weather-card" class="card weather-card" style="display:none;"></div>
+            <div id="soil-summary" class="card soil-summary-card" style="display:none;"></div>
+        </div>
+
+        <!-- TOP 3 PREDICTION CARDS -->
+        <div id="predictions-container" class="predictions-container"></div>
+
+        <!-- SUITABILITY CHART -->
+        <div class="card chart-card">
+            <h3 class="card-title" data-key="chartTitle">📊 Crop Suitability Analysis</h3>
+            <p class="card-desc">Confidence scores for all 22 crop types</p>
+            <canvas id="suitability-chart" class="suitability-canvas"></canvas>
+        </div>
+
+        <!-- SOIL TIPS -->
+        <div id="soil-tips" class="card tips-card" style="display:none;"></div>
+
+        <!-- PRICE DISCLAIMER -->
+        <div class="price-disclaimer">
+            <p>⚠️ <strong data-key="priceNote">Prices are indicative. Contact your local Mandi (APMC) for current rates.</strong></p>
+            <p>📊 Source: Ministry of Agriculture MSP 2024-25 | AGMARKNET</p>
+        </div>
+
+        <!-- PREDICT AGAIN BUTTON -->
+        <div class="predict-again-row">
+            <button class="btn-predict-again" onclick="resetForm(); scrollTo('#form-section')">
+                ↑ Predict Again with New Data
+            </button>
+        </div>
+
+    </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════
+     FOOTER
+══════════════════════════════════════════════ -->
+<footer class="site-footer">
+    <div class="container">
+        <div class="footer-grid">
+            <div>
+                <h4>🌾 AI Crop Advisor</h4>
+                <p data-key="footerNote">Predictions based on ML model trained on agricultural data.</p>
+                <p data-key="poweredBy">Powered by Random Forest ML · Node.js · Python Flask</p>
+            </div>
+            <div>
+                <h4>📞 Resources</h4>
+                <ul class="footer-links">
+                    <li><a href="https://agmarknet.gov.in" target="_blank">AGMARKNET Prices</a></li>
+                    <li><a href="https://farmer.gov.in" target="_blank">Farmer Portal (PM Kisan)</a></li>
+                    <li><a href="https://icar.org.in" target="_blank">ICAR Research</a></li>
+                    <li><a href="https://mkisan.gov.in" target="_blank">mKisan Portal</a></li>
+                </ul>
+            </div>
+            <div>
+                <h4>🔬 Technology Stack</h4>
+                <ul class="footer-links">
+                    <li>🐍 Python + scikit-learn</li>
+                    <li>🟩 Node.js + Express</li>
+                    <li>🌐 HTML5 + CSS3 + JS</li>
+                    <li>🗺️ Leaflet.js + OpenStreetMap</li>
+                    <li>☁️ OpenWeatherMap API</li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>© 2024 AI Crop Advisor | <span data-key="footerContact">For accurate soil testing, contact your local KVK</span></p>
+        </div>
+    </div>
+</footer>
+
+<!-- ═══════════════════════════════════════════
+     SCRIPTS — loaded in order
+══════════════════════════════════════════════ -->
+<!-- Leaflet Map Library -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<!-- Our JS modules -->
+<script src="js/translations.js"></script>
+<script src="js/map.js"></script>
+<script src="js/main.js"></script>
+
+<script>
+// ─────────────────────────────────────────────
+// INLINE BOOTSTRAP SCRIPT
+// Small utilities that need to run on page load
+// ─────────────────────────────────────────────
+
+// Language toggle button text updates when language changes
+window.addEventListener('languageChanged', function(e) {
+    const btn = document.getElementById('lang-toggle-btn');
+    if (btn) btn.textContent = t('toggleLang');
+});
+
+// Sample soil profiles for different Indian regions
+// Lets users quickly test with realistic data
+function fillProfile(region) {
+    const profiles = {
+        punjab: { n: 90, p: 42, k: 43, temperature: 22, humidity: 80, ph: 7.0, rainfall: 210 },
+        deccan: { n: 95, p: 38, k: 40, temperature: 28, humidity: 75, ph: 7.8, rainfall: 75 },
+        kerala: { n: 5,  p: 5,  k: 30, temperature: 27, humidity: 90, ph: 6.0, rainfall: 250 },
+        mp:     { n: 60, p: 50, k: 50, temperature: 24, humidity: 65, ph: 6.5, rainfall: 100 }
+    };
+    const p = profiles[region];
+    if (!p) return;
+    ['n','p','k','temperature','humidity','ph','rainfall'].forEach(key => {
+        const el = document.getElementById(`input-${key}`);
+        if (el) el.value = p[key];
+    });
+    document.getElementById('ph-slider').value = p.ph;
+    showToast('info', `✅ ${region.toUpperCase()} soil profile loaded`);
+}
+
+// Share results as text (can be extended to WhatsApp deep link)
+function shareResults() {
+    if (!currentPrediction) return;
+    const top = currentPrediction.predictions[0];
+    const text = `🌾 AI Crop Recommendation\nBest Crop: ${top.crop.toUpperCase()} (${top.hindi_name})\nConfidence: ${top.confidence}%\nMarket Price: ${top.prices?.market_low} – ${top.prices?.market_high}/qtl\n\nPowered by AI Crop Advisor`;
+    if (navigator.share) {
+        navigator.share({ title: 'AI Crop Recommendation', text });
+    } else {
+        navigator.clipboard.writeText(text).then(() => showToast('success', '📋 Copied to clipboard!'));
+    }
+}
+</script>
+
+</body>
+</html>

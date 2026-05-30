@@ -1,0 +1,10 @@
+# Never upload these to GitHub
+backend/.env
+.env
+
+# These are auto-generated, no need to upload
+node_modules/
+ml/models/
+__pycache__/
+*.pyc
+.DS_Store
