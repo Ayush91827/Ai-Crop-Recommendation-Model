@@ -190,19 +190,27 @@ async function fetchWeather(lat, lon) {
         return { ...cached, fromCache: true };
     }
 
-    const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${WEATHER_KEY}&units=metric`;
-    const response = await axios.get(url, { timeout: 5000 });
-    const d = response.data;
+    // Open Meteo — free, no API key, no rate limit ever
+    const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,precipitation,wind_speed_10m&timezone=auto`;
+    const weatherRes = await axios.get(weatherUrl, { timeout: 5000 });
+    const current = weatherRes.data.current;
+
+    // Nominatim for city name — free, no API key
+    const geoUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10`;
+    const geoRes = await axios.get(geoUrl, {
+        timeout: 5000,
+        headers: { 'User-Agent': 'CropRecommendationApp/1.0' }
+    });
+    const addr = geoRes.data.address || {};
 
     const result = {
-        temperature:  Math.round(d.main.temp * 10) / 10,
-        humidity:     d.main.humidity,
-        description:  d.weather[0].description,
-        city:         d.name,
-        country:      d.sys.country,
-        rainfall:     d.rain ? (d.rain['1h'] || d.rain['3h'] || 0) * 30 : 50, // Estimate monthly
-        feels_like:   Math.round(d.main.feels_like),
-        wind_speed:   d.wind.speed,
+        temperature:  Math.round(current.temperature_2m * 10) / 10,
+        humidity:     current.relative_humidity_2m,
+        rainfall:     Math.round(current.precipitation * 30),
+        wind_speed:   current.wind_speed_10m,
+        description:  'Current conditions',
+        city:         addr.city || addr.town || addr.village || addr.county || 'Unknown',
+        country:      addr.country || '',
         fromCache:    false
     };
 
