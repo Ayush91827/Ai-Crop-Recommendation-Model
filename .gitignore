@@ -1,8 +1,7 @@
-# Never upload these to GitHub
 backend/.env
 .env
-
-# These are auto-generated, no need to upload
+.venv
+*.pkl
 node_modules/
 ml/models/
 __pycache__/

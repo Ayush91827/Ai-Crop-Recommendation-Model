@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Crop Recommendation System</title>
+    <!-- Tailwind CSS for modern responsive styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Leaflet.js CSS for Interactive Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
+
+    <!-- Header Navbar -->
+    <header class="bg-emerald-700 text-white shadow-md py-4 px-6 flex justify-between items-center">
+        <h1 id="app-title" class="text-xl font-bold">🌱 AI Crop Recommendation System</h1>
+        <button onclick="toggleLanguage()" class="bg-emerald-800 hover:bg-emerald-900 text-sm px-3 py-1 rounded transition">
+            🌐 <span id="lang-btn-text">हिंदी / English</span>
+        </button>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
+        
+        <!-- Left Column: Input Form -->
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+            <h2 id="form-heading" class="text-lg font-semibold mb-4 text-emerald-800">Enter Soil & Weather Parameters</h2>
+            
+            <form id="prediction-form" class="space-y-4">
+                <div class="grid grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-1">Nitrogen (N)</label>
+                        <input type="number" step="any" id="n" required class="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-1">Phosphorus (P)</label>
+                        <input type="number" step="any" id="p" required class="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-1">Potassium (K)</label>
+                        <input type="number" step="any" id="k" required class="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-1">Temperature (°C)</label>
+                        <input type="number" step="any" id="temperature" required class="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-1">Humidity (%)</label>
+                        <input type="number" step="any" id="humidity" required class="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-1">pH Level</label>
+                        <input type="number" step="any" id="ph" required class="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-1">Rainfall (mm)</label>
+                        <input type="number" step="any" id="rainfall" required class="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                    </div>
+                </div>
+
+                <button type="submit" id="submit-btn" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2.5 rounded transition shadow-sm">
+                    Recommend Crop
+                </button>
+            </form>
+        </div>
+
+        <!-- Right Column: Interactive Map & Results Display -->
+        <div class="space-y-6">
+            <!-- Leaflet Map Container -->
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                <h3 class="text-sm font-semibold mb-2 text-slate-700">📍 Select Location on Map</h3>
+                <div id="map" class="h-64 rounded-lg border border-slate-200 z-10"></div>
+            </div>
+
+            <!-- Results Card -->
+            <div id="result-card" class="bg-emerald-50 border border-emerald-200 p-6 rounded-xl shadow-sm hidden text-center">
+                <h3 class="text-sm font-medium text-emerald-800 mb-1">Optimal Crop Recommendation:</h3>
+                <p id="recommended-crop-text" class="text-3xl font-extrabold text-emerald-900 uppercase tracking-wide"></p>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Leaflet.js Script -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const map = L.map('map').setView([23.2599, 77.4126], 6);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        let marker;
+        map.on('click', async function(e) {
+            const lat = e.latlng.lat;
+            const lon = e.latlng.lng;
+            
+            if (marker) {
+                marker.setLatLng([lat, lon]);
+            } else {
+                marker = L.marker([lat, lon]).addTo(map);
+            }
+            
+            try {
+                const response = await fetch(`/get-weather?lat=${lat}&lon=${lon}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    document.getElementById('temperature').value = result.temperature;
+                    document.getElementById('humidity').value = result.humidity;
+                    document.getElementById('rainfall').value = 200.0; // Baseline default or optional forecast
+                } else {
+                    alert("Weather API Error: " + result.error);
+                }
+            } catch (err) {
+                console.error("Failed to fetch weather data:", err);
+                alert("Network error connecting to backend proxy.");
+            }
+        });
+
+        document.getElementById('prediction-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const payload = {
+                n: parseFloat(document.getElementById('n').value),
+                p: parseFloat(document.getElementById('p').value),
+                k: parseFloat(document.getElementById('k').value),
+                temperature: parseFloat(document.getElementById('temperature').value),
+                humidity: parseFloat(document.getElementById('humidity').value),
+                ph: parseFloat(document.getElementById('ph').value),
+                rainfall: parseFloat(document.getElementById('rainfall').value)
+            };
+
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    const card = document.getElementById('result-card');
+                    const text = document.getElementById('recommended-crop-text');
+                    text.textContent = result.predicted_crop;
+                    card.classList.remove('hidden');
+                } else {
+                    alert('Prediction error: ' + result.error);
+                }
+            } catch (err) {
+                console.error('Error submitting request:', err);
+                alert('Network error occurred.');
+            }
+        });
+
+        // Simple Bilingual Toggle State
+        let isHindi = false;
+        function toggleLanguage() {
+            isHindi = !isHindi;
+            document.getElementById('app-title').textContent = isHindi ? "🌱 एआई फसल अनुशंसा प्रणाली" : "🌱 AI Crop Recommendation System";
+            document.getElementById('form-heading').textContent = isHindi ? "मिट्टी और मौसम के पैरामीटर दर्ज करें" : "Enter Soil & Weather Parameters";
+            document.getElementById('submit-btn').textContent = isHindi ? "फसल की अनुशंसा करें" : "Recommend Crop";
+        }
+    </script>
+</body>
+</html>
