@@ -1,170 +1,348 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Crop Recommendation System</title>
-    <!-- Tailwind CSS for modern responsive styling -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Leaflet.js CSS for Interactive Map -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AI Crop Advisor | फसल मित्र</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Noto+Sans+Devanagari:wght@400;600;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
 </head>
-<body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
+<body>
 
-    <!-- Header Navbar -->
-    <header class="bg-emerald-700 text-white shadow-md py-4 px-6 flex justify-between items-center">
-        <h1 id="app-title" class="text-xl font-bold">🌱 AI Crop Recommendation System</h1>
-        <button onclick="toggleLanguage()" class="bg-emerald-800 hover:bg-emerald-900 text-sm px-3 py-1 rounded transition">
-            🌐 <span id="lang-btn-text">हिंदी / English</span>
-        </button>
-    </header>
+<!-- TOAST -->
+<div id="toast-container"></div>
 
-    <main class="max-w-6xl mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
-        
-        <!-- Left Column: Input Form -->
-        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-            <h2 id="form-heading" class="text-lg font-semibold mb-4 text-emerald-800">Enter Soil & Weather Parameters</h2>
-            
-            <form id="prediction-form" class="space-y-4">
-                <div class="grid grid-cols-3 gap-4">
-                    <div>
-                        <label class="block text-xs font-medium text-slate-600 mb-1">Nitrogen (N)</label>
-                        <input type="number" step="any" id="n" required class="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-slate-600 mb-1">Phosphorus (P)</label>
-                        <input type="number" step="any" id="p" required class="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-slate-600 mb-1">Potassium (K)</label>
-                        <input type="number" step="any" id="k" required class="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
-                    </div>
-                </div>
+<!-- LOADING OVERLAY -->
+<div id="loading-overlay">
+  <div class="loading-box">
+    <div class="loading-wheat">🌾</div>
+    <div class="loading-spinner"></div>
+    <p id="loading-text" data-key="loading">Analysing your soil data...</p>
+    <p class="loading-sub" data-key="loadingSub">Consulting 200 decision trees + live market data</p>
+  </div>
+</div>
 
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-medium text-slate-600 mb-1">Temperature (°C)</label>
-                        <input type="number" step="any" id="temperature" required class="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-slate-600 mb-1">Humidity (%)</label>
-                        <input type="number" step="any" id="humidity" required class="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
-                    </div>
-                </div>
+<!-- MAP MODAL -->
+<div id="map-modal">
+  <div class="map-modal-inner">
+    <div class="map-modal-header">
+      <h3 data-key="mapTitle">🗺️ Select Location on Map</h3>
+      <button class="map-close-btn" onclick="closeMapModal()">✕</button>
+    </div>
+    <p class="map-instruction" data-key="mapInstruction">Click anywhere on the map to drop a pin · Drag the pin to fine-tune</p>
+    <div id="map-container"></div>
+    <div class="map-footer">
+      <div class="selected-location-display">
+        <span>📍</span>
+        <span id="selected-location-label" data-key="noLocationSelected">No location selected yet</span>
+      </div>
+      <button id="confirm-location-btn" class="btn-confirm-location" onclick="confirmLocation()" disabled data-key="mapConfirm">
+        ✅ Use This Location
+      </button>
+    </div>
+  </div>
+</div>
 
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-medium text-slate-600 mb-1">pH Level</label>
-                        <input type="number" step="any" id="ph" required class="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-slate-600 mb-1">Rainfall (mm)</label>
-                        <input type="number" step="any" id="rainfall" required class="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
-                    </div>
-                </div>
+<!-- HEADER -->
+<header class="site-header">
+  <div class="header-inner">
+    <div class="brand">
+      <div class="brand-icon">🌾</div>
+      <div class="brand-text">
+        <span class="brand-name" data-key="appTitle">AI Crop Advisor</span>
+        <span class="brand-sub" data-key="brandSub">Random Forest ML · Live Prices</span>
+      </div>
+    </div>
+    <nav class="nav-links">
+      <a href="#form-section" data-key="navPredict">Predict</a>
+      <a href="#results-section" data-key="navResults">Results</a>
+    </nav>
+    <div class="header-actions">
+      <div class="ml-status">
+        <span id="ml-status-indicator" class="status-dot yellow"></span>
+        <span id="ml-status-text" data-key="checkingAI">Checking AI...</span>
+      </div>
+      <button class="lang-btn" onclick="toggleLanguage()" data-key="toggleLang">हिंदी में देखें</button>
+    </div>
+  </div>
+</header>
 
-                <button type="submit" id="submit-btn" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2.5 rounded transition shadow-sm">
-                    Recommend Crop
-                </button>
-            </form>
+<!-- HERO -->
+<section id="hero" class="hero-section">
+  <div class="hero-bg-pattern"></div>
+  <div class="hero-content">
+    <div class="hero-badge" data-key="heroBadge">🌱 Powered by Random Forest Machine Learning</div>
+    <h1 class="hero-title" data-key="appTitle">AI Crop Advisor</h1>
+    <p class="hero-subtitle" data-key="heroSubtitle">
+      Get accurate crop recommendations based on soil NPK, temperature, humidity, pH, and rainfall.<br>
+      Live AGMARKNET mandi prices · Open-Meteo weather · Full Hindi support.
+    </p>
+    <div class="hero-stats">
+      <div class="stat-item"><span class="stat-num">22</span><span class="stat-label" data-key="statCrops">Crops</span></div>
+      <div class="stat-divider"></div>
+      <div class="stat-item"><span class="stat-num">98.75%</span><span class="stat-label" data-key="statAccuracy">Accuracy</span></div>
+      <div class="stat-divider"></div>
+      <div class="stat-item"><span class="stat-num" data-key="statLive">Live</span><span class="stat-label" data-key="statPrices">Prices</span></div>
+      <div class="stat-divider"></div>
+      <div class="stat-item"><span class="stat-num">ML</span><span class="stat-label" data-key="statModel">Model</span></div>
+    </div>
+    <a href="#form-section" class="hero-cta" data-key="heroCta">🔍 Get Recommendation ↓</a>
+  </div>
+  <div class="hero-illustration">
+    <div class="floating-cards">
+      <div class="float-card card-1">🌾 Rice ₹2183 MSP</div>
+      <div class="float-card card-2">🌱 Soil Test Ready</div>
+      <div class="float-card card-3">💰 Live Prices</div>
+      <div class="float-card card-4">🗺️ GPS Location</div>
+    </div>
+  </div>
+</section>
+
+<!-- MAIN FORM -->
+<main id="form-section" class="form-section">
+  <div class="container">
+
+    <!-- STEPS -->
+    <div class="steps-bar">
+      <div class="step active"><div class="step-num">1</div><span data-key="stepLocation">Location</span></div>
+      <div class="step-line"></div>
+      <div class="step active"><div class="step-num">2</div><span data-key="stepSoil">Soil Data</span></div>
+      <div class="step-line"></div>
+      <div class="step"><div class="step-num">3</div><span data-key="stepResults">Results</span></div>
+    </div>
+
+    <div class="form-grid">
+      <!-- LEFT -->
+      <div class="form-left-panel">
+
+        <!-- LOCATION CARD -->
+        <div class="card location-card">
+          <div class="card-header">
+            <h2 class="card-title">📍 <span data-key="locationTitle">Location</span></h2>
+            <p class="card-desc" data-key="locationDesc">Optional: Auto-fills weather parameters or enter them manually below</p>
+          </div>
+          <button id="my-location-btn" class="btn-my-location" onclick="useMyLocation()">
+            <span class="btn-icon">🎯</span> <span data-key="useMyLocation">Use My Location</span>
+          </button>
+          <div class="divider-or"><span data-key="or">OR</span></div>
+          <div id="search-container" class="search-container">
+            <div class="search-input-row">
+              <input type="text" id="location-search" class="search-input"
+                placeholder="Search city, village, district..."
+                data-placeholder-key="searchPlaceholder"
+                oninput="handleSearchInput(this.value)" autocomplete="off"/>
+              <button class="btn-search" onclick="searchLocation(document.getElementById('location-search').value)">🔍</button>
+            </div>
+            <div id="search-results" class="search-results"></div>
+          </div>
+          <button class="btn-open-map" onclick="openMapModal()" data-key="openMapBtn">🗺️ Open Map &amp; Select Location</button>
+          <div id="location-status" class="location-status" style="display:none"></div>
         </div>
 
-        <!-- Right Column: Interactive Map & Results Display -->
-        <div class="space-y-6">
-            <!-- Leaflet Map Container -->
-            <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-                <h3 class="text-sm font-semibold mb-2 text-slate-700">📍 Select Location on Map</h3>
-                <div id="map" class="h-64 rounded-lg border border-slate-200 z-10"></div>
+        <!-- SOIL FORM -->
+        <div class="card form-card">
+          <div class="card-header">
+            <h2 class="card-title">🌱 <span data-key="formTitle">Soil &amp; Climate Parameters</span></h2>
+            <p class="card-desc" data-key="formSubtitle">Values from your soil test card</p>
+            <button class="btn-demo" onclick="fillDemoValues()" data-key="demoValuesBtn">📝 Demo Values</button>
+          </div>
+
+          <form id="soil-form" onsubmit="return false">
+            <!-- N P K -->
+            <div class="input-row three-col">
+              <div class="input-group">
+                <label for="input-n"><span class="nutrient-dot n-dot"></span> <span data-key="labelN">Nitrogen (N)</span></label>
+                <div class="input-with-unit">
+                  <input type="number" id="input-n" class="soil-input" placeholder="0–140" min="0" max="140" step="0.1"/>
+                  <span class="unit-badge" data-key="unitKgHa">kg/ha</span>
+                </div>
+                <span class="field-error" id="input-n-error"></span>
+                <div class="input-guide" data-key="guideN">Low &lt;40 · Med 40–80 · High &gt;80</div>
+              </div>
+              <div class="input-group">
+                <label for="input-p"><span class="nutrient-dot p-dot"></span> <span data-key="labelP">Phosphorus (P)</span></label>
+                <div class="input-with-unit">
+                  <input type="number" id="input-p" class="soil-input" placeholder="0–150" min="0" max="150" step="0.1"/>
+                  <span class="unit-badge" data-key="unitKgHa">kg/ha</span>
+                </div>
+                <span class="field-error" id="input-p-error"></span>
+              </div>
+              <div class="input-group">
+                <label for="input-k"><span class="nutrient-dot k-dot"></span> <span data-key="labelK">Potassium (K)</span></label>
+                <div class="input-with-unit">
+                  <input type="number" id="input-k" class="soil-input" placeholder="0–210" min="0" max="210" step="0.1"/>
+                  <span class="unit-badge" data-key="unitKgHa">kg/ha</span>
+                </div>
+                <span class="field-error" id="input-k-error"></span>
+              </div>
             </div>
 
-            <!-- Results Card -->
-            <div id="result-card" class="bg-emerald-50 border border-emerald-200 p-6 rounded-xl shadow-sm hidden text-center">
-                <h3 class="text-sm font-medium text-emerald-800 mb-1">Optimal Crop Recommendation:</h3>
-                <p id="recommended-crop-text" class="text-3xl font-extrabold text-emerald-900 uppercase tracking-wide"></p>
+            <!-- TEMP & HUMIDITY -->
+            <div class="input-row two-col">
+              <div class="input-group">
+                <label for="input-temperature">🌡️ <span data-key="labelTemp">Temperature</span> <span class="auto-badge" data-key="autoFromWeather">auto from location</span></label>
+                <div class="input-with-unit">
+                  <input type="number" id="input-temperature" class="soil-input" placeholder="0–50" min="0" max="50" step="0.1"/>
+                  <span class="unit-badge" data-key="unitCelsius">°C</span>
+                </div>
+                <span class="field-error" id="input-temperature-error"></span>
+              </div>
+              <div class="input-group">
+                <label for="input-humidity">💧 <span data-key="labelHumidity">Humidity</span> <span class="auto-badge" data-key="autoFromWeather">auto from location</span></label>
+                <div class="input-with-unit">
+                  <input type="number" id="input-humidity" class="soil-input" placeholder="0–100" min="0" max="100" step="0.1"/>
+                  <span class="unit-badge" data-key="unitPercent">%</span>
+                </div>
+                <span class="field-error" id="input-humidity-error"></span>
+              </div>
             </div>
+
+            <!-- pH SLIDER -->
+            <div class="input-group">
+              <label for="input-ph">⚗️ <span data-key="labelPh">Soil pH</span> <span class="ph-note" data-key="phRange">(0–14, 7 = neutral)</span></label>
+              <div class="ph-input-group">
+                <input type="range" id="ph-slider" min="0" max="14" step="0.1" value="7" class="ph-slider"/>
+                <input type="number" id="input-ph" class="soil-input ph-number" placeholder="0–14" min="0" max="14" step="0.1"/>
+              </div>
+              <div class="ph-scale-labels">
+                <span class="ph-acid" data-key="phAcid">Acidic (0)</span>
+                <span class="ph-neutral" data-key="phNeutral">Neutral (7)</span>
+                <span class="ph-alkaline" data-key="phAlkaline">Alkaline (14)</span>
+              </div>
+              <span class="field-error" id="input-ph-error"></span>
+            </div>
+
+            <!-- RAINFALL -->
+            <div class="input-group">
+              <label for="input-rainfall">🌧️ <span data-key="labelRainfall">Rainfall</span> <span class="auto-badge" data-key="autoFromWeather">auto from location</span></label>
+              <div class="input-with-unit">
+                <input type="number" id="input-rainfall" class="soil-input" placeholder="0–500" min="0" max="500" step="0.1"/>
+                <span class="unit-badge" data-key="unitMm">mm</span>
+              </div>
+              <span class="field-error" id="input-rainfall-error"></span>
+            </div>
+
+            <div id="error-message" class="error-banner" style="display:none"></div>
+
+            <div class="form-actions">
+              <button type="button" class="btn-reset" onclick="resetForm()" data-key="resetBtn">🔄 Reset</button>
+              <button type="submit" id="predict-btn" class="btn-predict" onclick="handleFormSubmit(event)" data-key="predictBtn">
+                🔍 Get Crop Recommendation
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- RIGHT PANEL -->
+      <div class="form-right-panel">
+        <div class="card how-it-works-card">
+          <h3 class="card-title" data-key="howItWorksTitle">⚙️ How It Works</h3>
+          <ol class="how-steps">
+            <li><span class="how-num">1</span> <span data-key="howStep1">Select location → weather auto-fills</span></li>
+            <li><span class="how-num">2</span> <span data-key="howStep2">Enter N, P, K, pH from soil card</span></li>
+            <li><span class="how-num">3</span> <span data-key="howStep3">Click Get Crop Recommendation</span></li>
+            <li><span class="how-num">4</span> <span data-key="howStep4">Get top-3 crops with confidence %</span></li>
+            <li><span class="how-num">5</span> <span data-key="howStep5">See live mandi prices + MSP</span></li>
+          </ol>
         </div>
 
-    </main>
+        <div class="card npk-guide-card">
+          <h3 class="card-title" data-key="npkGuideTitle">🧪 NPK Quick Guide</h3>
+          <div class="npk-items">
+            <div class="npk-item n-item"><div class="npk-symbol">N</div><div><strong data-key="npkNTitle">Nitrogen</strong><p data-key="npkNDesc">Leaf &amp; stem growth. Found in Urea, DAP</p></div></div>
+            <div class="npk-item p-item"><div class="npk-symbol">P</div><div><strong data-key="npkPTitle">Phosphorus</strong><p data-key="npkPDesc">Root development &amp; flowering</p></div></div>
+            <div class="npk-item k-item"><div class="npk-symbol">K</div><div><strong data-key="npkKTitle">Potassium</strong><p data-key="npkKDesc">Disease resistance &amp; fruit quality</p></div></div>
+          </div>
+          <p class="npk-note" data-key="npkNote">📋 Get free soil test at your local KVK</p>
+        </div>
 
-    <!-- Leaflet.js Script -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script>
-        const map = L.map('map').setView([23.2599, 77.4126], 6);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors'
-        }).addTo(map);
+        <div class="card sample-profiles-card">
+          <h3 class="card-title" data-key="profilesTitle">🗂️ Regional Profiles</h3>
+          <p class="card-desc" data-key="profilesDesc">Auto-fill with regional soil data</p>
+          <div class="profile-buttons">
+            <button class="profile-btn" onclick="fillProfile('punjab')" data-key="profilePunjab">🌾 Punjab (Rice-Wheat)</button>
+            <button class="profile-btn" onclick="fillProfile('deccan')" data-key="profileDeccan">🌱 Deccan (Cotton)</button>
+            <button class="profile-btn" onclick="fillProfile('kerala')" data-key="profileKerala">🥥 Kerala (Coconut)</button>
+            <button class="profile-btn" onclick="fillProfile('mp')" data-key="profileMp">🌿 MP (Soybean)</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
 
-        let marker;
-        map.on('click', async function(e) {
-            const lat = e.latlng.lat;
-            const lon = e.latlng.lng;
-            
-            if (marker) {
-                marker.setLatLng([lat, lon]);
-            } else {
-                marker = L.marker([lat, lon]).addTo(map);
-            }
-            
-            try {
-                const response = await fetch(`/get-weather?lat=${lat}&lon=${lon}`);
-                const result = await response.json();
-                
-                if (result.success) {
-                    document.getElementById('temperature').value = result.temperature;
-                    document.getElementById('humidity').value = result.humidity;
-                    document.getElementById('rainfall').value = 200.0; // Baseline default or optional forecast
-                } else {
-                    alert("Weather API Error: " + result.error);
-                }
-            } catch (err) {
-                console.error("Failed to fetch weather data:", err);
-                alert("Network error connecting to backend proxy.");
-            }
-        });
+<!-- RESULTS -->
+<section id="results-section" style="display:none">
+  <div class="container">
+    <div class="results-header">
+      <h2 class="section-title" data-key="resultsTitle">🌾 Results</h2>
+      <button class="btn-share" onclick="shareResults()" data-key="shareBtn">📤 Share</button>
+    </div>
 
-        document.getElementById('prediction-form').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            const payload = {
-                n: parseFloat(document.getElementById('n').value),
-                p: parseFloat(document.getElementById('p').value),
-                k: parseFloat(document.getElementById('k').value),
-                temperature: parseFloat(document.getElementById('temperature').value),
-                humidity: parseFloat(document.getElementById('humidity').value),
-                ph: parseFloat(document.getElementById('ph').value),
-                rainfall: parseFloat(document.getElementById('rainfall').value)
-            };
+    <div class="info-cards-row">
+      <div id="weather-card" class="card weather-card" style="display:none"></div>
+      <div id="soil-summary" class="card soil-summary-card" style="display:none"></div>
+    </div>
 
-            try {
-                const response = await fetch('/predict', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                
-                const result = await response.json();
-                if (result.success) {
-                    const card = document.getElementById('result-card');
-                    const text = document.getElementById('recommended-crop-text');
-                    text.textContent = result.predicted_crop;
-                    card.classList.remove('hidden');
-                } else {
-                    alert('Prediction error: ' + result.error);
-                }
-            } catch (err) {
-                console.error('Error submitting request:', err);
-                alert('Network error occurred.');
-            }
-        });
+    <div id="predictions-container" class="predictions-container"></div>
 
-        // Simple Bilingual Toggle State
-        let isHindi = false;
-        function toggleLanguage() {
-            isHindi = !isHindi;
-            document.getElementById('app-title').textContent = isHindi ? "🌱 एआई फसल अनुशंसा प्रणाली" : "🌱 AI Crop Recommendation System";
-            document.getElementById('form-heading').textContent = isHindi ? "मिट्टी और मौसम के पैरामीटर दर्ज करें" : "Enter Soil & Weather Parameters";
-            document.getElementById('submit-btn').textContent = isHindi ? "फसल की अनुशंसा करें" : "Recommend Crop";
-        }
-    </script>
+    <div class="card chart-card">
+      <h3 class="card-title" data-key="chartTitle">📊 Suitability Analysis</h3>
+      <canvas id="suitability-chart" class="suitability-canvas"></canvas>
+    </div>
+
+    <div id="soil-tips" class="card tips-card" style="display:none"></div>
+
+    <div class="price-disclaimer">
+      <p data-key="priceDisclaimer1">⚠️ Prices are indicative. Contact your local APMC Mandi for final rates.</p>
+    </div>
+
+    <div class="predict-again-row">
+      <button class="btn-predict-again" onclick="resetForm(); scrollTo('#form-section')" data-key="predictAgainBtn">↑ Predict Again</button>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <h4 data-key="footerBrand">🌾 AI Crop Advisor</h4>
+        <p data-key="footerSub">Random Forest Machine Learning + Live AGMARKNET Prices</p>
+        <p data-key="poweredBy">Python · Flask · Leaflet.js · Open-Meteo</p>
+      </div>
+      <div>
+        <h4 data-key="footerResources">📞 Resources</h4>
+        <ul class="footer-links">
+          <li><a href="https://agmarknet.gov.in" target="_blank">AGMARKNET Prices</a></li>
+          <li><a href="https://farmer.gov.in" target="_blank">Farmer Portal (PM-Kisan)</a></li>
+          <li><a href="https://soilhealth.dac.gov.in" target="_blank">Soil Health Card</a></li>
+          <li><a href="https://data.gov.in" target="_blank">data.gov.in (API)</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4 data-key="footerTech">🔬 Tech Stack</h4>
+        <ul class="footer-links">
+          <li>🐍 Python + scikit-learn (ML)</li>
+          <li>🟩 Flask REST API</li>
+          <li>🗺️ Leaflet.js + OpenStreetMap</li>
+          <li>☁️ Open-Meteo (Weather, free)</li>
+          <li>📊 AGMARKNET (Live prices)</li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2026 AI Crop Advisor | <span data-key="footerContact">For soil testing contact your local KVK</span></p>
+    </div>
+  </div>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="{{ url_for('static', filename='js/translations.js') }}"></script>
+<script src="{{ url_for('static', filename='js/map.js') }}"></script>
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html>
